@@ -34,6 +34,7 @@ let bird = null;
 let pipes = null;
 let pipeHorizontalDistance = 0;
 const pipeVerticalDistanceRange = [150, 250];
+const pipeHorizontalDistanceRange = [500, 550];
 
 function preload() {
   this.load.image('sky', 'assets/sky.png');
@@ -49,8 +50,8 @@ function create() {
     .setOrigin(0);
   bird.body.gravity.y = 400;
   bird.setScale(0.07);
-  
-  pipes = this.physics.add.group()
+
+  pipes = this.physics.add.group();
 
   for (let i = 0; i < PIPES_TO_RENDER; i++) {
     const upperPipe = pipes.create(0, 0, 'pipe').setOrigin(0, 1);
@@ -58,34 +59,54 @@ function create() {
 
     placePipe(upperPipe, lowerPipe);
   }
-  
+
   pipes.setVelocityX(-200);
 
   this.input.on('pointerdown', flap);
   this.input.keyboard.on('keydown_SPACE', flap);
 }
 
-function update(time, delta) {
-  if (bird.y > config.height || bird.y < -bird.height) {
-    restartBirdPosition();
-  }
-}
-
 function placePipe(uPipe, lPipe) {
-  pipeHorizontalDistance += 400;
-  let pipeVerticalDistance = Phaser.Math.Between(...pipeVerticalDistanceRange);
-  let pipeVerticalPosition = Phaser.Math.Between(
+  // pipeHorizontalDistance += 400;
+  const rightMostX = getRightMostPipe();
+  const pipeVerticalDistance = Phaser.Math.Between(
+    ...pipeVerticalDistanceRange
+  );
+  const pipeVerticalPosition = Phaser.Math.Between(
     0 + 20,
     config.height - 20 - pipeVerticalDistance
   );
+  let pipeHorizontalDistance =
+    rightMostX + Phaser.Math.Between(...pipeHorizontalDistanceRange);
 
   uPipe.x = pipeHorizontalDistance;
   uPipe.y = pipeVerticalPosition;
 
   lPipe.x = uPipe.x;
   lPipe.y = uPipe.y + pipeVerticalDistance;
+}
 
- 
+// this function will run of every frame
+function recyclePipes() {
+  const tempPipes = [];
+  pipes.getChildren().forEach((pipe) => {
+    if (pipe.getBounds().right <= 0) {
+      // recycle Pipe
+      tempPipes.push(pipe);
+      if (tempPipes.length === 2) {
+        placePipe(...tempPipes);
+      }
+    }
+  });
+}
+
+function getRightMostPipe() {
+  let rightMostX = 0;
+
+  pipes.getChildren().forEach(function (pipe) {
+    rightMostX = Math.max(pipe.x, rightMostX);
+  });
+  return rightMostX;
 }
 
 function restartBirdPosition() {
@@ -93,7 +114,13 @@ function restartBirdPosition() {
   bird.y = initialBirdPosition.y;
   bird.body.velocity.y = 0;
 }
-
 function flap() {
   bird.body.velocity.y = -flapVelocity;
+}
+
+function update(time, delta) {
+  if (bird.y > config.height || bird.y < -bird.height) {
+    restartBirdPosition();
+  }
+  recyclePipes();
 }
