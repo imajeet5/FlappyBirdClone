@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import PlayScene from './scenes/PlayScene';
+
 
 const config = {
   // renderer
