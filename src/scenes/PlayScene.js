@@ -14,6 +14,8 @@ class PlayScene extends BaseScene {
     this.bird = null;
     this.pipes = null;
 
+    this.isPaused = false;
+
     this.pipeVerticalDistanceRange = [150, 250];
     this.pipeHorizontalDistanceRange = [500, 550];
     this.pipeHorizontalDistance = 0;
@@ -22,9 +24,27 @@ class PlayScene extends BaseScene {
     this.score = 0;
     this.scoreText = '';
     this.bestScoreText = '';
+
+    this.currentDifficulty = 'easy';
+    this.difficulties = {
+      easy: {
+        pipeHorizontalDistanceRange: [400, 450],
+        pipeVerticalDistanceRange: [200, 250],
+      },
+      normal: {
+        pipeHorizontalDistanceRange: [300, 340],
+        pipeVerticalDistanceRange: [150, 190],
+      },
+      hard: {
+        pipeHorizontalDistanceRange: [250, 310],
+        pipeVerticalDistanceRange: [120, 170],
+      },
+    };
   }
 
   create() {
+    this.currentDifficulty = 'easy';
+
     super.create();
 
     this.createBird();
@@ -38,6 +58,8 @@ class PlayScene extends BaseScene {
     this.createPause();
 
     this.handleInputs();
+
+    this.listenToEvents();
   }
 
   createBird() {
@@ -67,8 +89,9 @@ class PlayScene extends BaseScene {
     this.pipes.setVelocityX(-200);
   }
 
+  // what to do when collision occurs between objects
   createColliders() {
-    this.physics.add.collider(this.bird, this.pipes, this.gameOver, null, this);
+    // this.physics.add.collider(this.bird, this.pipes, this.gameOver, null, this);
   }
 
   createScores() {
@@ -90,6 +113,7 @@ class PlayScene extends BaseScene {
   }
 
   createPause() {
+    this.isPaused = false;
     const pauseBtn = this.add
       .image(this.config.width - 10, this.config.height - 10, 'pause')
       .setInteractive()
@@ -97,8 +121,11 @@ class PlayScene extends BaseScene {
       .setOrigin(1);
 
     pauseBtn.on('pointerdown', () => {
+      this.isPaused = true;
       this.physics.pause();
       this.scene.pause();
+      // when we do not want to close the current scene and launch the new scene
+      this.scene.launch('PauseScene');
     });
   }
 
@@ -107,18 +134,54 @@ class PlayScene extends BaseScene {
     this.input.keyboard.on('keydown_SPACE', this.flap, this);
   }
 
+  listenToEvents() {
+    if (this.pauseEvent) {
+      return;
+    }
+    this.pauseEvent = this.events.on('resume', () => {
+      this.initialTime = 3;
+      this.countDownText = this.add
+        .text(
+          ...this.screenCenter,
+          'Fly in: ' + this.initialTime,
+          this.fontOptions
+        )
+        .setOrigin(0.5);
+      this.timedEvent = this.time.addEvent({
+        delay: 1000,
+        callback: this.countDown,
+        callbackScope: this,
+        loop: true,
+      });
+    });
+  }
+
+  countDown() {
+    this.initialTime--;
+    this.countDownText.setText('Fly in: ' + this.initialTime);
+    if (this.initialTime <= 0) {
+      this.isPaused = false;
+      this.countDownText.setText('');
+      this.physics.resume();
+      this.timedEvent.remove();
+    }
+  }
+
   placePipe(uPipe, lPipe) {
     // pipeHorizontalDistance += 400;
+    const difficulty = this.difficulties[this.currentDifficulty];
+    console.log('Current Difficulty: ', this.currentDifficulty);
     const rightMostX = this.getRightMostPipe();
     const pipeVerticalDistance = Phaser.Math.Between(
-      ...this.pipeVerticalDistanceRange
+      ...difficulty.pipeVerticalDistanceRange
     );
     const pipeVerticalPosition = Phaser.Math.Between(
       0 + 20,
       this.config.height - 20 - pipeVerticalDistance
     );
     let pipeHorizontalDistance =
-      rightMostX + Phaser.Math.Between(...this.pipeHorizontalDistanceRange);
+      rightMostX +
+      Phaser.Math.Between(...difficulty.pipeHorizontalDistanceRange);
 
     uPipe.x = pipeHorizontalDistance;
     uPipe.y = pipeVerticalPosition;
@@ -146,9 +209,22 @@ class PlayScene extends BaseScene {
           this.placePipe(...tempPipes);
           this.increaseScore();
           this.saveBestScore();
+          this.increaseDifficulty();
         }
       }
     });
+  }
+
+  increaseDifficulty() {
+    if (this.score < 4) {
+      this.currentDifficulty = 'easy';
+    }
+    if (this.score >= 4 && this.score < 7) {
+      this.currentDifficulty = 'normal';
+    }
+    if (this.score >= 7) {
+      this.currentDifficulty = 'hard';
+    }
   }
 
   saveBestScore() {
@@ -190,6 +266,9 @@ class PlayScene extends BaseScene {
   }
 
   flap() {
+    if (this.isPaused) {
+      return;
+    }
     this.bird.body.velocity.y = -this.flapVelocity;
   }
 

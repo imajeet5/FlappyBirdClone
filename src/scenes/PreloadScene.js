@@ -10,6 +10,7 @@ class PreloadScene extends Phaser.Scene {
     this.load.image('bird', '/assets/BirdPng/Frame-1.png');
     this.load.image('pipe', './assets/pipe.png');
     this.load.image('pause', './assets/pause.png');
+    this.load.image('back', './assets/back.png');
   }
 
   create() {
@@ -17,5 +18,5 @@ class PreloadScene extends Phaser.Scene {
     // this.scene.start('PlayScene');
   }
 }
-
+``
 export default PreloadScene;
